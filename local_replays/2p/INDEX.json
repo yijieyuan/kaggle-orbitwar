@@ -1,0 +1,90 @@
+{
+ "matches": [
+  {
+   "pair_id": "merge_vs_greedy",
+   "p0": {
+    "kind": "exp",
+    "id": "merge",
+    "version": null
+   },
+   "p1": {
+    "kind": "exp",
+    "id": "greedy",
+    "version": null
+   },
+   "seeds": [
+    {
+     "seed": "seed_00",
+     "winner": 0,
+     "scores": [
+      4740,
+      0
+     ],
+     "n_turns": 218,
+     "seats": [
+      "merge",
+      "greedy"
+     ],
+     "mtime": 1783221331.8828335
+    },
+    {
+     "seed": "seed_01",
+     "winner": 1,
+     "scores": [
+      0,
+      2822
+     ],
+     "n_turns": 240,
+     "seats": [
+      "greedy",
+      "merge"
+     ],
+     "mtime": 1783221284.771306
+    },
+    {
+     "seed": "seed_02",
+     "winner": 0,
+     "scores": [
+      1828,
+      0
+     ],
+     "n_turns": 272,
+     "seats": [
+      "merge",
+      "greedy"
+     ],
+     "mtime": 1783221312.4131038
+    },
+    {
+     "seed": "seed_03",
+     "winner": 0,
+     "scores": [
+      1712,
+      0
+     ],
+     "n_turns": 196,
+     "seats": [
+      "greedy",
+      "merge"
+     ],
+     "mtime": 1783221261.6064222
+    },
+    {
+     "seed": "seed_04",
+     "winner": 1,
+     "scores": [
+      0,
+      5443
+     ],
+     "n_turns": 258,
+     "seats": [
+      "merge",
+      "greedy"
+     ],
+     "mtime": 1783221296.5261538
+    }
+   ],
+   "_latest_mtime": 1783221331.8828335
+  }
+ ]
+}

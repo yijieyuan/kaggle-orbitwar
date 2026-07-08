@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Orbit Wars — Local Replay Viewer</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #050a15; color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 12px;
+  }
+  h1 { margin: 0 0 8px 0; font-size: 16px; color: #94a3b8; font-weight: normal; }
+  .row { display: flex; gap: 8px; align-items: center; margin: 4px 0; width: 1016px; flex-wrap: wrap; }
+  select, button, input[type=range] {
+    background: #1e293b; color: #e2e8f0; border: 1px solid #475569;
+    padding: 5px 10px; font-family: inherit; font-size: 12px; border-radius: 3px;
+  }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { background: #334155; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 600px; height: 6px;
+    background: #1e293b; padding: 0; cursor: pointer; outline: none; border-radius: 3px; flex: 1;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+    background: #3b82f6; cursor: pointer; border-radius: 50%; border: 2px solid #e2e8f0;
+  }
+  .label { color: #94a3b8; font-size: 11px; }
+  #info { font-size: 11px; color: #cbd5e1; margin: 6px 0; min-height: 14px; text-align: center; }
+  #summary { font-size: 13px; color: #cbd5e1; margin: 6px 0; min-height: 18px; text-align: center; width: 1016px; }
+  #main { display: flex; gap: 16px; align-items: flex-start; margin-top: 8px; }
+  canvas#game {
+    background: radial-gradient(ellipse at center, #0a1424 0%, #050a15 70%);
+    border: 1px solid #334155; border-radius: 4px;
+  }
+  .legend { display: flex; gap: 8px; margin-top: 6px; font-size: 10px; flex-wrap: wrap; justify-content: center; }
+  .legend span { padding: 2px 6px; border-radius: 2px; }
+  .hint { color: #64748b; font-size: 10px; margin-top: 6px; }
+  #sidePane {
+    width: 280px; height: 720px; background: #0a1424; border: 1px solid #334155;
+    border-radius: 4px; padding: 8px; overflow-y: auto; font-size: 11px;
+  }
+  #sidePane h3 { margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; font-weight: normal; }
+  #sideList .turnhdr { font-size: 12px; color: #e2e8f0; font-weight: bold; margin-bottom: 4px; }
+  #sideList .pstat { font-size: 11px; line-height: 1.5; }
+  #sideList .fhdr { margin: 8px 0 4px 0; font-size: 11px; color: #94a3b8; border-top: 1px solid #1e293b; padding-top: 6px; }
+  .fleet-item {
+    padding: 4px 6px; margin: 3px 0; border-left: 3px solid; border-radius: 2px;
+    background: rgba(255,255,255,0.03); font-size: 10.5px; line-height: 1.35;
+  }
+  .fleet-item .row1, .fleet-item .row2 { display: block; color: #cbd5e1; }
+  .fleet-item .row2 { color: #94a3b8; font-size: 10px; }
+  .chartPanel {
+    margin-top: 12px; padding: 8px; background: #0f172a; border: 1px solid #1e293b;
+    border-radius: 6px; width: 1016px; box-sizing: border-box;
+  }
+  .chartPanel h3 { margin: 0 0 6px 0; font-size: 13px; color: #cbd5e1; font-weight: normal; }
+  .chartPanel canvas { background: #050a15; border: 1px solid #1e293b; display: block; width: 1000px; }
+</style>
+</head>
+<body>
+
+<h1>Orbit Wars — Local Experiment Replays</h1>
+
+<!-- Player count: local_replay/2p | local_replay/4p (4p reserved) -->
+<div class="row" style="gap:6px">
+  <span class="label">Players:</span>
+  <select id="pcSelect" style="width:64px; flex:0 0 64px">
+    <option value="2p" selected>2p</option>
+    <option value="4p">4p</option>
+  </select>
+  <span class="label" style="color:#64748b">source: local_replays/&lt;players&gt;/</span>
+</div>
+
+<!-- 2p selection: exp -> version -> opponent -> opp_version (hidden when PC=4p) -->
+<div class="row" id="expRow" style="flex-wrap:nowrap; gap:6px">
+  <span class="label">Exp:</span>
+  <select id="expSelect" style="flex:1.6; min-width:160px"></select>
+  <span class="label">v</span>
+  <select id="expVerSelect" style="width:50px; flex:0 0 50px"></select>
+  <span class="label">Opp:</span>
+  <select id="oppSelect" style="flex:1.6; min-width:160px"></select>
+  <span class="label">v</span>
+  <select id="oppVerSelect" style="width:50px; flex:0 0 50px"></select>
+</div>
+<!-- 4p FFA selection: cascading seat pickers P0..P3 (hidden when PC=2p) -->
+<div class="row" id="seatRow" style="flex-wrap:nowrap; gap:6px; display:none">
+  <span class="label" style="color:#3b82f6">P0:</span>
+  <select id="seatSel0" style="flex:1; min-width:110px"></select>
+  <span class="label" style="color:#ef4444">P1:</span>
+  <select id="seatSel1" style="flex:1; min-width:110px"></select>
+  <span class="label" style="color:#10b981">P2:</span>
+  <select id="seatSel2" style="flex:1; min-width:110px"></select>
+  <span class="label" style="color:#f59e0b">P3:</span>
+  <select id="seatSel3" style="flex:1; min-width:110px"></select>
+</div>
+<!-- Seed / game picker (shared by both modes) -->
+<div class="row" style="flex-wrap:nowrap; gap:6px">
+  <span class="label">Seed:</span>
+  <select id="seedSelect" style="flex:1; min-width:200px"></select>
+</div>
+
+<div id="info" class="label"></div>
+<div id="summary"></div>
+
+<div id="main">
+  <canvas id="game" width="720" height="720"></canvas>
+  <div id="sidePane">
+    <h3>Turn detail</h3>
+    <div id="sideList">—</div>
+  </div>
+</div>
+
+<div class="row">
+  <button id="prevBtn">◀</button>
+  <button id="playPause">▶ Play</button>
+  <button id="nextBtn">▶</button>
+  <span class="label">turn:</span>
+  <input type="range" id="turnSlider" min="0" max="0" value="0">
+  <span id="turnLabel" style="min-width: 70px; text-align:right">0/0</span>
+  <span class="label">speed:</span>
+  <select id="speed">
+    <option value="2">0.5x</option>
+    <option value="1">1x</option>
+    <option value="0.5">2x</option>
+    <option value="0.25" selected>4x</option>
+    <option value="0.125">8x</option>
+  </select>
+</div>
+
+<div class="legend">
+  <span style="background:#3b82f6;color:white">P0</span>
+  <span style="background:#ef4444;color:white">P1</span>
+  <span style="background:#10b981;color:white">P2 (4p)</span>
+  <span style="background:#f59e0b;color:white">P3 (4p)</span>
+  <span style="background:#94a3b8;color:#1e293b">Neutral</span>
+  <span style="color:#fde047">Sun</span>
+  <span style="color:#a78bfa">Comet</span>
+</div>
+
+<div class="hint">Keyboard: ← → step, Space play/pause. Source: local_replays/&lt;players&gt;/ (2p|4p selector above).</div>
+
+<div class="chartPanel" id="winprobPanel">
+  <h3>RL win-confidence &mdash; value head V(s) &nbsp;<span style="color:#3b82f6">P0</span> <span style="color:#ef4444">P1</span> <span style="color:#10b981">P2</span> <span style="color:#f59e0b">P3</span> &nbsp;<span style="color:#22c55e">current</span> &nbsp;<span style="color:#64748b">(only RL seats' lines show; 50% = even)</span></h3>
+  <canvas id="winprobCanvas" width="1000" height="160"></canvas>
+</div>
+<div class="chartPanel" id="timePanel">
+  <h3>Per-turn agent time (ms) &nbsp;<span style="color:#3b82f6">P0</span> <span style="color:#ef4444">P1</span> <span style="color:#10b981">P2</span> <span style="color:#f59e0b">P3</span> &nbsp;<span style="color:#22c55e">current</span>&nbsp; <span class="label" id="timeHead" style="color:#cbd5e1"></span></h3>
+  <canvas id="timeCanvas" width="1000" height="160"></canvas>
+</div>
+<div class="chartPanel" id="overageBankPanel">
+  <h3>Remaining overage bank (s) per turn &mdash; derived from per-turn time: 60s &minus; &Sigma; max(0, time&minus;1s), clamped &ge;0 &nbsp;<span style="color:#3b82f6">P0</span> <span style="color:#ef4444">P1</span> <span style="color:#10b981">P2</span> <span style="color:#f59e0b">P3</span> &nbsp;<span style="color:#22c55e">current</span></h3>
+  <canvas id="overageBankCanvas" width="1000" height="160"></canvas>
+</div>
+
+<div class="chartPanel">
+  <h3>Total ships per turn &nbsp;<span style="color:#3b82f6">P0</span> <span style="color:#ef4444">P1</span> <span style="color:#10b981">P2</span> <span style="color:#f59e0b">P3</span> &nbsp;<span style="color:#22c55e">current</span></h3>
+  <canvas id="shipsCanvas" width="1000" height="160"></canvas>
+</div>
+<div class="chartPanel">
+  <h3>Total production per turn &nbsp;<span style="color:#3b82f6">P0</span> <span style="color:#ef4444">P1</span> <span style="color:#10b981">P2</span> <span style="color:#f59e0b">P3</span> &nbsp;<span style="color:#22c55e">current</span></h3>
+  <canvas id="prodCanvas" width="1000" height="160"></canvas>
+</div>
+<div class="chartPanel">
+  <h3>Passive ship projection &mdash; ship count per planet over the next 100 turns (no new launches)</h3>
+  <div id="projTable">&mdash;</div>
+</div>
+
+<script src="viewer_core.js"></script>
+<script>
+"use strict";
+// ============================================================================
+// Local replay loader (flat INDEX schema). Primary source: local_replays/ (the
+// round-robin / battery store, parallel to official_replay/). Legacy 2p/replays_*
+// folders are still merged in if present. Each match is tagged with its _folder.
+//   <folder>/INDEX.json = {matches:[{pair_id,p0,p1,seeds:[...]}]}
+//   Replay: <folder>/<pair_id>/<seed_dir>/replay.json  (official schema + _aux)
+// ============================================================================
+const ROOT_BASE = "/";
+const LS_KEY = "orbitwar_local_viewer_v1";
+let MATCHES_EXP = [];
+let PC = "2p";                              // player-count subdir: local_replay/{2p,4p} (Players selector)
+
+// Numeric version ordering (mirror of shared/sim/labels.py): "v6@u8000@raw" -> [6, 8000, raw].
+// Keeps labels readable while sorting v2<v11 and u8000<u11000 instead of lexically.
+function verSortKey(v) {
+  v = v || "";
+  const vm = v.match(/^v(\d+)/), um = v.match(/@u(\d+)/);
+  return [vm ? +vm[1] : -1, um ? +um[1] : -1, v.includes("@raw") ? 1 : 0];
+}
+function cmpVer(a, b) {
+  const ka = verSortKey(a), kb = verSortKey(b);
+  return (ka[0] - kb[0]) || (ka[1] - kb[1]) || (ka[2] - kb[2]) || (a || "").localeCompare(b || "");
+}
+
+// ───────── 4p FFA seat-picker model: flatten games, cascade P0..P3 selectors ─────────
+// Each 4p FFA game carries its own seat map in seedEntry.seats (seats rotate per game), so the
+// 2p Exp/Opp pair model doesn't apply. Instead: GAMES = every (match, seedEntry) flattened; the
+// four seat selects filter cascadingly (P0 pick restricts P1's options, etc.; "(any)" = no filter).
+const SEAT_IDS = ["seatSel0", "seatSel1", "seatSel2", "seatSel3"];
+const ANY = "(any)";
+let GAMES = [];                             // 4p: [{m: match, se: seedEntry, seats: [4 names]}]
+
+function is4p() { return PC === "4p"; }
+function updateModeRows() {
+  document.getElementById("expRow").style.display = is4p() ? "none" : "";
+  document.getElementById("seatRow").style.display = is4p() ? "" : "none";
+}
+function gameSeats(m, se) {
+  if (se.seats && se.seats.length >= 4) return se.seats.slice(0, 4);
+  const a = shortName(m.p0), b = shortName(m.p1);   // no seat map (e.g. run_battery mirror) -> derive
+  return [a, b, a, b];
+}
+function rebuildGames() {
+  GAMES = [];
+  for (const m of MATCHES_EXP) for (const se of (m.seeds || [])) GAMES.push({ m, se, seats: gameSeats(m, se) });
+}
+function seatChoice(i) {
+  const el = document.getElementById(SEAT_IDS[i]);
+  return (el && el.value && el.value !== ANY) ? el.value : null;
+}
+function gamesMatchingSeats(upto) {         // games consistent with seat picks 0..upto-1 (4 = all)
+  const picks = [];
+  for (let i = 0; i < upto; i++) picks.push(seatChoice(i));
+  return GAMES.filter(g => picks.every((p, i) => p == null || g.seats[i] === p));
+}
+function populateSeatSelect(i) {            // options = "(any)" + names at seat i among games matching earlier picks
+  const el = document.getElementById(SEAT_IDS[i]);
+  const prev = el.value;
+  el.innerHTML = "";
+  const names = [...new Set(gamesMatchingSeats(i).map(g => g.seats[i]))].sort();
+  for (const n of [ANY, ...names]) {
+    const o = document.createElement("option");
+    o.value = n; o.textContent = n;
+    el.appendChild(o);
+  }
+  if (prev) { for (const o of el.options) if (o.value === prev) { el.value = prev; break; } }  // keep pick when still valid
+}
+function gameKey(g) { return `${g.m.pair_id}|${g.se.seed}`; }
+function populateSeeds4p() {
+  const sel = document.getElementById("seedSelect");
+  const prev = sel.value;
+  sel.innerHTML = "";
+  for (const g of gamesMatchingSeats(4)) {
+    const o = document.createElement("option");
+    o.value = gameKey(g);
+    const w = g.se.winner;
+    const winLabel = (w == null || w < 0) ? "TIE" : `${g.seats[w] || ("P" + w)} (P${w}) wins`;
+    const pidShort = g.m.pair_id.replace(/_vs_/g, " vs ");
+    o.textContent = `${pidShort}  ${g.se.seed}  →  ${winLabel}  [${(g.se.scores || []).join(",")}]  ${g.se.n_turns}t`;
+    sel.appendChild(o);
+  }
+  if (prev) { for (const o of sel.options) if (o.value === prev) { sel.value = prev; break; } }
+}
+function currentGame4p() {
+  const key = document.getElementById("seedSelect").value;
+  if (!key) return null;
+  return GAMES.find(g => gameKey(g) === key) || null;
+}
+function populate4pAll(saved) {             // saved = initial restore; otherwise in-place preserve
+  rebuildGames();
+  for (let i = 0; i < 4; i++) {
+    populateSeatSelect(i);                  // cascades on the (just-restored) earlier picks
+    if (saved && saved.seats) trySet(SEAT_IDS[i], saved.seats[i]);
+  }
+  populateSeeds4p();
+  if (saved) trySet("seedSelect", saved.seed);
+}
+function populate2pAll(saved) {
+  populateExpSelect();    if (saved) trySet("expSelect", saved.exp);
+  populateExpVerSelect(); if (saved) trySet("expVerSelect", saved.expVer);
+  populateOppSelect();    if (saved) trySet("oppSelect", saved.opp);
+  populateOppVerSelect(); if (saved) trySet("oppVerSelect", saved.oppVer);
+  populateSeeds();        if (saved) trySet("seedSelect", saved.seed);
+}
+function populateAll(saved) { updateModeRows(); if (is4p()) populate4pAll(saved); else populate2pAll(saved); }
+
+async function fetchAllIndices() {          // single live source: local_replays/<PC>/INDEX.json (battery overwrites)
+  const folder = "local_replays/" + PC;
+  try {
+    const idx = await fetchJSON(ROOT_BASE + folder + "/INDEX.json");
+    return (idx.matches || []).map(m => { m._folder = folder; return m; });
+  } catch (e) { return []; }
+}
+function replayUrl(match, seedDir) {
+  const folder = match._folder || "local_replay";
+  return `${ROOT_BASE}${folder}/${match.pair_id}/${seedDir}/replay.json`;
+}
+function partKey(p) { return p.kind === "exp" ? `exp:${p.id}:${p.version}` : `agent:${p.id}`; }
+function uniqueExpParticipants() {
+  const seen = new Map();
+  for (const m of MATCHES_EXP) for (const p of [m.p0, m.p1]) {
+    const k = partKey(p);
+    if (!seen.has(k)) seen.set(k, p);
+  }
+  return [...seen.values()].sort((a, b) =>
+    a.id.localeCompare(b.id) || cmpVer(a.version, b.version));
+}
+function matchesFor(selId, selVer) {
+  return MATCHES_EXP.filter(m =>
+    (m.p0.id === selId && m.p0.version === selVer) ||
+    (m.p1.id === selId && m.p1.version === selVer));
+}
+function opponentOf(match, me) {
+  return (match.p0.id === me.id && match.p0.version === me.version) ? match.p1 : match.p0;
+}
+function shortName(p) {
+  const id = (p.id || "").replace(/^experiment-/, "");
+  const m = id.match(/^(\d+)/);
+  const num = m ? m[1] : id;
+  return p.version ? `${num} ${p.version}` : num;
+}
+
+function populateExpSelect() {
+  const sel = document.getElementById("expSelect");
+  sel.innerHTML = "";
+  const seen = new Set();
+  for (const p of uniqueExpParticipants()) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    const o = document.createElement("option");
+    o.value = p.id; o.textContent = p.id;
+    sel.appendChild(o);
+  }
+}
+function populateExpVerSelect() {
+  const sel = document.getElementById("expVerSelect");
+  sel.innerHTML = "";
+  const expId = document.getElementById("expSelect").value;
+  const versions = new Set();
+  for (const p of uniqueExpParticipants()) if (p.id === expId) versions.add(p.version);
+  for (const v of [...versions].sort(cmpVer)) {
+    // agent-kind participants (4p FFA batteries) have version=null -> "—" sentinel, NOT a
+    // null-valued option (the DOM coerces null to "", which getMyParticipant used to reject).
+    const o = document.createElement("option");
+    o.value = (v == null) ? "—" : v; o.textContent = (v == null) ? "—" : v;
+    sel.appendChild(o);
+  }
+}
+function getMyParticipant() {
+  const expId = document.getElementById("expSelect").value;
+  const verSel = document.getElementById("expVerSelect");
+  if (!expId || !verSel.options.length) return null;
+  const ver = verSel.value;
+  return { kind: "exp", id: expId, version: (ver === "—" ? null : ver) };  // "—" = null-version agent
+}
+function populateOppSelect() {
+  const me = getMyParticipant();
+  const sel = document.getElementById("oppSelect");
+  sel.innerHTML = "";
+  if (!me) return;
+  const seen = new Map();
+  for (const m of matchesFor(me.id, me.version)) {
+    const opp = opponentOf(m, me);
+    const k = `${opp.kind}__${opp.id}`;
+    if (!seen.has(k)) seen.set(k, opp);
+  }
+  for (const opp of [...seen.values()].sort((a, b) => (a.kind + a.id).localeCompare(b.kind + b.id))) {
+    const o = document.createElement("option");
+    o.value = `${opp.kind}__${opp.id}`;
+    o.textContent = opp.kind === "agent" ? `agent: ${opp.id}` : `exp: ${opp.id}`;
+    o.dataset.kind = opp.kind; o.dataset.id = opp.id;
+    sel.appendChild(o);
+  }
+}
+function populateOppVerSelect() {
+  const sel = document.getElementById("oppVerSelect");
+  sel.innerHTML = "";
+  const me = getMyParticipant();
+  const oppOpt = document.getElementById("oppSelect").selectedOptions[0];
+  if (!me || !oppOpt) return;
+  const kind = oppOpt.dataset.kind, id = oppOpt.dataset.id;
+  const versions = new Set();
+  for (const m of matchesFor(me.id, me.version)) {
+    const opp = opponentOf(m, me);
+    if (opp.kind === kind && opp.id === id) versions.add(opp.version || "—");
+  }
+  for (const v of [...versions].sort(cmpVer)) {
+    const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o);
+  }
+}
+function getCurrentMatch() {
+  const me = getMyParticipant();
+  const oppOpt = document.getElementById("oppSelect").selectedOptions[0];
+  if (!me || !oppOpt) return null;
+  const oKind = oppOpt.dataset.kind, oId = oppOpt.dataset.id;
+  const oVer = document.getElementById("oppVerSelect").value;
+  for (const m of matchesFor(me.id, me.version)) {
+    const opp = opponentOf(m, me);
+    if (opp.kind === oKind && opp.id === oId && (opp.version || "—") === oVer) return m;
+  }
+  return null;
+}
+function populateSeeds() {
+  const sel = document.getElementById("seedSelect");
+  sel.innerHTML = "";
+  const m = getCurrentMatch();
+  if (!m) return;
+  const p0Name = shortName(m.p0), p1Name = shortName(m.p1);
+  for (const e of m.seeds) {
+    const o = document.createElement("option");
+    o.value = e.seed;
+    const np = (e.scores || []).length;
+    let winLabel;
+    if (e.winner == null || e.winner < 0) winLabel = "TIE";
+    else if (e.seats && e.seats[e.winner]) winLabel = `${e.seats[e.winner]} (P${e.winner}) wins`;   // 4p FFA: seat map
+    else if (np <= 2) winLabel = e.winner === 0 ? `${p0Name} wins` : `${p1Name} wins`;
+    else winLabel = `P${e.winner} wins`;
+    o.textContent = `${e.seed}  →  ${winLabel}  [${e.scores.join(",")}]  ${e.n_turns}t`;
+    sel.appendChild(o);
+  }
+}
+
+// 4p: resolve the chosen GAMES entry -> its match + seed dir, load via replayUrl as usual.
+async function loadCurrent4p() {
+  const info = document.getElementById("info");
+  const g = currentGame4p();
+  if (!g) { info.textContent = "select P0–P3 seats / game"; return; }
+  const url = replayUrl(g.m, g.se.seed);
+  info.textContent = `loading ${url}…`;
+  let r;
+  try { r = await fetchJSON(url); }
+  catch (e) { info.innerHTML = `<span style="color:#ef4444">load error: ${e.message}</span>`; return; }
+  info.textContent = "";
+  const rc = Array.isArray(r.steps && r.steps[0]) ? adaptOfficial(r) : r;
+  window.WINPROB = (r._aux && r._aux.winprob) || null;   // dict {seatIdxStr:[..]} (multiple RL seats possible)
+  loadReplayObject(rc);
+  const meta = rc.meta;
+  const np = meta.n_agents || 4;
+  const seats = (g.se.seats && g.se.seats.length) ? g.se.seats
+    : ((meta.agent_names && meta.agent_names.length) ? meta.agent_names : g.seats);
+  const PCOLS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
+  const parts = [];
+  for (let i = 0; i < np; i++) parts.push(`<b style="color:${PCOLS[i] || "#cbd5e1"}">${seats[i] || ("P" + i)}</b> (P${i})`);
+  const winName = meta.winner < 0 ? "TIE" : `${seats[meta.winner] || ("P" + meta.winner)} (P${meta.winner})`;
+  document.getElementById("summary").innerHTML =
+    parts.join(" vs ") + ` · winner <b>${winName}</b> · scores [${(meta.scores || []).join(",")}] · ${meta.n_turns} turns`;
+}
+
+async function loadCurrent() {
+  if (is4p()) return loadCurrent4p();
+  const me = getMyParticipant();
+  const m = getCurrentMatch();
+  const seedDir = document.getElementById("seedSelect").value;
+  const info = document.getElementById("info");
+  if (!me || !m || !seedDir) { info.textContent = "select exp / version / opponent / opp_version / seed"; return; }
+  const url = replayUrl(m, seedDir);
+  info.textContent = `loading ${url}…`;
+  let r;
+  try { r = await fetchJSON(url); }
+  catch (e) { info.innerHTML = `<span style="color:#ef4444">load error: ${e.message}</span>`; return; }
+  info.textContent = "";
+  // New replays are official Kaggle schema (+ _aux); legacy ones are the flat canonical shape.
+  const rc = Array.isArray(r.steps && r.steps[0]) ? adaptOfficial(r) : r;
+  window.WINPROB = (r._aux && r._aux.winprob) || null;   // RL value-head win-confidence per turn (offline)
+  loadReplayObject(rc);
+  const meta = rc.meta;
+  // 4p FFA: per-game seat map from the INDEX seed entry (seats rotate per game) -> 4-color summary.
+  const np = meta.n_agents || (meta.scores || []).length || 2;
+  const se = (m.seeds || []).find(e => e.seed === seedDir);
+  if (np > 2) {
+    const seats = (se && se.seats) || meta.agent_names || [];
+    const PCOLS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"];
+    const parts = [];
+    for (let i = 0; i < np; i++) parts.push(`<b style="color:${PCOLS[i] || "#cbd5e1"}">${seats[i] || ("P" + i)}</b> (P${i})`);
+    const winName = meta.winner < 0 ? "TIE" : `${seats[meta.winner] || ("P" + meta.winner)} (P${meta.winner})`;
+    document.getElementById("summary").innerHTML =
+      parts.join(" vs ") + ` · winner <b>${winName}</b> · scores [${meta.scores.join(",")}] · ${meta.n_turns} turns`;
+    return;
+  }
+  // per-game seats (balanced seating swaps p0/p1 across seeds) -> label by ACTUAL seat, not canonical p0/p1
+  const seatNm = i => (se && se.seats && se.seats[i]) || shortName(i === 0 ? m.p0 : m.p1);
+  const winnerStr = meta.winner < 0 ? "TIE" : `${seatNm(meta.winner)} (P${meta.winner})`;
+  // head-to-head winrate BY AGENT across this pair's seeds (seat-independent; from the INDEX seats map)
+  const aWins = {}; let tot = 0;
+  for (const e of (m.seeds || [])) {
+    tot++;
+    if (e.winner == null || e.winner < 0) continue;
+    const nm = (e.seats && e.seats[e.winner]) || (e.winner === 0 ? shortName(m.p0) : shortName(m.p1));
+    aWins[nm] = (aWins[nm] || 0) + 1;
+  }
+  const pct = w => (tot ? Math.round(100 * w / tot) : 0);
+  const h2h = Object.keys(aWins).sort().map(nm => `<b>${nm}</b> ${aWins[nm]} (${pct(aWins[nm])}%)`).join(" · ");
+  // timing from the raw _aux (adaptOfficial() drops duration_sec/time)
+  const aux = r._aux || {};
+  const dur = aux.meta ? aux.meta.duration_sec : null;
+  let th0 = 0, th1 = 0, mx0 = 0, mx1 = 0, nt = 0;
+  for (const e of (aux.time || [])) { if (e) { const a = e["0"] || 0, b = e["1"] || 0; th0 += a; th1 += b; if (a > mx0) mx0 = a; if (b > mx1) mx1 = b; nt++; } }
+  // dedicated timing line: 进行时间 (started) · 总用时 (duration + per-player think total) · 每回合 (avg/max ms)
+  let timingLine = "";
+  if (dur != null && aux.meta) {
+    let started = aux.meta.started_at || "";
+    try {  // UTC -> US Eastern (New York); auto EDT/EST label
+      const d = new Date(started);
+      const dt = d.toLocaleString("sv-SE", { timeZone: "America/New_York" });   // "2026-06-04 14:55:41"
+      const tz = d.toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" }).split(" ").pop();  // EDT / EST
+      started = `${dt} ${tz}`;
+    } catch (_) { started = started.replace("T", " ").replace(/[+Z].*$/, ""); }
+    const a0 = nt ? th0 / nt * 1000 : 0, a1 = nt ? th1 / nt * 1000 : 0;
+    timingLine =
+      `<br><span style="color:#94a3b8">⏱ 进行 <b>${started || "?"}</b> · ` +
+      `总用时 <b>${dur.toFixed(1)}s</b> (think p0 ${th0.toFixed(2)}s / p1 ${th1.toFixed(2)}s) · ` +
+      `每回合 <b style="color:#3b82f6">p0</b> avg ${a0.toFixed(0)}ms / max ${(mx0 * 1000).toFixed(0)}ms · ` +
+      `<b style="color:#ef4444">p1</b> avg ${a1.toFixed(0)}ms / max ${(mx1 * 1000).toFixed(0)}ms</span>`;
+  }
+  document.getElementById("summary").innerHTML =
+    `<b style="color:#3b82f6">${seatNm(0)}</b> (P0) vs <b style="color:#ef4444">${seatNm(1)}</b> (P1) · ` +
+    `winner <b>${winnerStr}</b> · scores [${meta.scores.join(",")}] · ${meta.n_turns} turns` +
+    `<br><span style="color:#94a3b8">H2H by agent (${tot} seeds): ${h2h}</span>` +
+    timingLine;
+}
+
+function saveSel() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      pc: PC,
+      exp: document.getElementById("expSelect").value,
+      expVer: document.getElementById("expVerSelect").value,
+      opp: document.getElementById("oppSelect").value,
+      oppVer: document.getElementById("oppVerSelect").value,
+      seats: SEAT_IDS.map(id => document.getElementById(id).value),   // 4p seat picks
+      seed: document.getElementById("seedSelect").value,
+    }));
+  } catch (_) {}
+}
+function loadSel() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (_) { return null; } }
+function trySet(id, val) {
+  if (val == null) return false;
+  const el = document.getElementById(id);
+  for (const o of el.options) if (o.value === val) { el.value = val; return true; }
+  return false;
+}
+
+// Live-refresh: re-read INDEX while batteries run so new matches/seeds appear
+// without a manual page reload. Preserves the current selection and does NOT
+// interrupt the replay you're watching (no loadCurrent()).
+async function refreshIndices() {
+  const sels = is4p() ? [...SEAT_IDS, "seedSelect"]
+                      : ["expSelect", "expVerSelect", "oppSelect", "oppVerSelect", "seedSelect"];
+  const active = document.activeElement && document.activeElement.id;
+  if (sels.includes(active)) return;                 // don't disrupt an open dropdown
+  const cur = {}; for (const id of sels) cur[id] = document.getElementById(id).value;
+  const fresh = await fetchAllIndices();
+  if (!fresh.length) return;
+  // content signature: catches new pairs/seeds AND overwritten results (winner/turns change),
+  // not just seed-count (a redo keeps the count but changes the game).
+  const sig = a => { let c = 0, t = 0, w = 0; for (const m of a) for (const e of (m.seeds || [])) { c++; t += e.n_turns || 0; w += (e.winner + 1); } return c + "|" + t + "|" + w; };
+  if (sig(fresh) === sig(MATCHES_EXP)) { MATCHES_EXP = fresh; if (is4p()) rebuildGames(); return; }   // no content change
+  MATCHES_EXP = fresh;
+  if (is4p()) {
+    populate4pAll(null);                             // populate* preserve current picks in place
+  } else {
+    populateExpSelect();    trySet("expSelect", cur.expSelect);
+    populateExpVerSelect(); trySet("expVerSelect", cur.expVerSelect);
+    populateOppSelect();    trySet("oppSelect", cur.oppSelect);
+    populateOppVerSelect(); trySet("oppVerSelect", cur.oppVerSelect);
+    populateSeeds();        trySet("seedSelect", cur.seedSelect);
+  }
+  const inf = document.getElementById("info");
+  if (inf && !inf.textContent) { inf.textContent = "↻ index updated"; setTimeout(() => { inf.textContent = ""; }, 1500); }
+}
+
+async function init() {
+  initCoreControls();
+  const saved0 = loadSel();                              // restore player-count BEFORE fetching its index
+  if (saved0 && saved0.pc) { PC = saved0.pc; document.getElementById("pcSelect").value = PC; }
+  updateModeRows();                                      // show the right selector row even if the fetch fails
+  document.getElementById("info").textContent = "loading replay indices…";
+  MATCHES_EXP = await fetchAllIndices();
+  if (!MATCHES_EXP.length) {
+    document.getElementById("info").innerHTML =
+      `<span style="color:#ef4444">No matches in /local_replay/${PC}/INDEX.json (serve from project root, run a battery).</span>`;
+    return;
+  }
+  document.getElementById("info").textContent = "";
+  const saved = loadSel();
+  populateAll(saved);                                    // 2p exp/opp chain OR 4p seat pickers, per PC
+  loadCurrent();
+
+  document.getElementById("expSelect").addEventListener("change", () => {
+    populateExpVerSelect(); populateOppSelect(); populateOppVerSelect(); populateSeeds(); saveSel(); loadCurrent();
+  });
+  document.getElementById("expVerSelect").addEventListener("change", () => {
+    populateOppSelect(); populateOppVerSelect(); populateSeeds(); saveSel(); loadCurrent();
+  });
+  document.getElementById("oppSelect").addEventListener("change", () => {
+    populateOppVerSelect(); populateSeeds(); saveSel(); loadCurrent();
+  });
+  document.getElementById("oppVerSelect").addEventListener("change", () => { populateSeeds(); saveSel(); loadCurrent(); });
+  document.getElementById("seedSelect").addEventListener("change", () => { saveSel(); loadCurrent(); });
+  for (let i = 0; i < 4; i++) {                          // 4p seat picks cascade onto LATER seats only
+    const idx = i;
+    document.getElementById(SEAT_IDS[i]).addEventListener("change", () => {
+      for (let j = idx + 1; j < 4; j++) populateSeatSelect(j);   // repopulate later seats (keep valid picks)
+      populateSeeds4p(); saveSel(); loadCurrent();
+    });
+  }
+  document.getElementById("pcSelect").addEventListener("change", async (e) => {
+    PC = e.target.value; saveSel();                      // switch 2p|4p -> reload that subdir's index
+    MATCHES_EXP = await fetchAllIndices();
+    populateAll(null);
+    const inf = document.getElementById("info");
+    if (!MATCHES_EXP.length) { inf.innerHTML = `<span style="color:#ef4444">No matches in /local_replay/${PC}/INDEX.json</span>`; }
+    else { inf.textContent = ""; loadCurrent(); }
+  });
+  setInterval(refreshIndices, 12000);   // live-refresh INDEX every 12s while batteries run
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+A clean, minimal, flat vector "textbook" neural-network architecture diagram. Airy, LOTS of whitespace, thin crisp lines, tidy grid, symmetric, nothing cramped. PURE WHITE background (#FFFFFF); one big rounded-rectangle with a thin light-gray border, white fill.
+LAYOUT: a thin VERTICAL DIVIDER splits it into LEFT ~68% = the network and RIGHT ~32% = THREE stacked panels, top→bottom: "2P → 4P changes", "FiLM conditioning", "edge-bias". Make the RIGHT column WIDE and give its panels and cards GENEROUS padding and vertical spacing — roomy, not squeezed.
+Colors: light BLUE (#8FBFE0)=learnable; ORANGE (#F5B26B)=input; GRAY (#C9C9C9) squares=tokens; GREEN circle "×"=pointer attention; YELLOW (#F5D06E)=output. Cards/boxes have white or very-light fills on the white background.
+Every step is its own rounded box; label every dimension/count change. IMPORTANT: render EVERY concatenation with "||" and NEVER with "+"; use "→" for sequential steps. Arrows orthogonal, evenly spaced, no crossings. Render text EXACTLY as given, never print layout words. TYPOGRAPHY: set ALL text in a light-weight Helvetica-style sans-serif (thin strokes, clean grotesque, light weight). 16:9 landscape, flat, no 3D, no photoreal.
+
+TITLE (bold, top): "OrbitNet  ·  1.2M parameters"
+Far-left stage labels: INPUTS / ENCODE / TOKENS / TRUNK / HEADS.
+
+Two parallel branches build two token types (per-planet and global), then both feed a shared transformer.
+
+PER-PLANET (left, header "PER-PLANET TOKENS"):
+  INPUTS (orange): "Forecast features (P × 50 × 7)" , "Planet state (P × 23)".
+  ENCODE: "Forecast features" → BLUE "1D CNN 7→16→32→64 over 50 turns → pool the 50 turns [mean || max || attn] = 192 → Dense → 64" ; "Planet state" → BLUE "MLP 23 → 64".
+  TOKENS: both merge → BLUE "concat(64 || 64) = 128 → FiLM → token MLP 128→256→128"; small italic note under it "FiLM: game-summary scales/shifts the fused planet features"; output = GRAY row of ~11 squares "▢▢▢▢▢▢▢▢ … ▢▢" labeled bold "Planet tokens: up to 44 × 128".
+
+GLOBAL (right, header "GLOBAL TOKEN"):
+  INPUTS (orange): "Economy features (50 × 2)" , "Game summary (28)".
+  ENCODE: "Economy features" → BLUE "1D CNN 2→16→32→64 over 50 turns → pool the 50 turns [mean || max || attn] = 192 → Dense → 64".
+  TOKENS: BLUE "concat(28 || 64) = 92 → MLP 92 → 128" fed by BOTH the economy output AND "Game summary (28)" → ONE distinct square labeled bold "Global token: 1 × 128".
+
+TRUNK (centered, shared): 3 overlapping BLUE cards with a "{ 6×" brace, bold "Transformer ×6 (128-dim, 4 heads)" + a line "sequence = 44 planet || 1 global = (P+1) × 128". Both the planet-token row AND the single global token feed arrows up into it. To its LEFT an ORANGE box "Planet-pair edge features (P×P×6)" with a short ORANGE arrow labeled simply "edge-bias" pointing into the trunk. Output arrow down → gray box "Contextualized: 44 planet || 1 global (×128)".
+
+HEADS — three branches, titled "VALUE", "TARGET / pointer", "FRACTION":
+  • VALUE: BLUE "Pool planets || global → 256" → YELLOW "Value → V(s)".
+  • TARGET / pointer (center): a GRAY "planet pairs" row feeds a GREEN "×" node labeled "pointer attention:  query·key + edge-bias"; an ORANGE box "Planet-pair edge features (P×P×6)" feeds the SAME "×" via a short ORANGE arrow labeled "edge-bias". → label "Pairwise scores (P×P) · self = HOLD" → YELLOW "Softmax over targets → target planet".
+  • FRACTION: BLUE "Fraction MLP  [src || tgt || global] = 384 → 256 → 2" → YELLOW "μ, σ → send 0–100% of garrison".
+
+LEGEND (bottom-left of the network): "blue = learnable · orange = input · green × = pointer attention (query·key + edge-bias, scores = output) · yellow = output · gray = tokens".
+
+RIGHT PANEL 1 — "2P → 4P changes" (roomy, generously spaced red-outlined cards, very-light-red fill), each "label:  A → B":
+  "Planet features: 23 → 30"
+  "Forecast features: 7 → 10"
+  "Game summary: 28 → 34"
+  "Economy features: 2 → 8"   subtext "p0 + p1  →  p0 + p1 + p2 + p3"
+  "Owner one-hot: 3 → 5"   subtext "p0 / p1 / neutral  →  p0 / p1 / p2 / p3 / neutral"
+  "Seat frame: rotate the board so the acting player is always p0; the other three become p1, p2, p3 → one shared network plays all 4 seats."
+
+RIGHT PANEL 2 — "FiLM conditioning" (BLUE-outlined box, roomy):
+  "Generated from Game summary (28) only:"
+  "Dense(28 → 256, zero-init)  →  128 scales (γ)  ||  128 shifts (β)"
+  "Applied to the fused planet features (128), before the token MLP:"
+  "feat = (1 + γ) · feat + β"
+
+RIGHT PANEL 3 — "edge-bias" (ORANGE-outlined box, roomy):
+  "Planet-pair edge features (P × P × 6): distance, travel time, reachability per ordered pair."
+  "A tiny MLP → a bias added to the score, same idea in two places:"
+  "· transformer attention:  MLP 6→32→4  →  per-head bias"
+  "· pointer head:  MLP 6→16→1  →  bias on the pairwise target score"

@@ -1,0 +1,23 @@
+{
+  "alias": "25v1",
+  "category": "rl",
+  "backend": "numpy",
+  "zero_bin": false,
+  "encoder_E": 128,
+  "n_layers": 6,
+  "n_heads": 4,
+  "K": "pointer + clipped-Gaussian fraction (self-slot = hold)",
+  "action": "pointer + clipped-Gaussian fraction (SimpleFracMLP)",
+  "jax_env": "jax_env/env.py (capped F=256, FLEET_CAP_PER_PLAYER=128, TRAIN-ONLY)",
+  "model": "model.py",
+  "feature_dim": 21,
+  "glob_dim": 32,
+  "ts_shape": [50, 6],
+  "engine": "attnpool_edgebias_pointer_clipgauss_simplefrac_e128",
+  "first_hit_gate": true,
+  "param_trees": ["net", "frac"],
+  "tournament_updates": [],
+  "bare_v_default": false,
+  "note": "exp025 v1 = exp24 self-play train_league (cg_* clipped-Gaussian dist + winrate-gated league + capped F=256 env, ALL verbatim) + v41 model (OrbitNet19 E=128 n_layers=6 n_heads=4 + SimpleFracMLP[emb||emb_tid||gemb]). RANDOM init (NO IL warm-start; the IL-on/off switch is just whether --init_from is passed). n_heads=4 confirmed (v41 rl_infer Hh=4 d=32 produced a sensible 0.85-vsOL eval -> agent_meta's n_heads=8 is a stale copy-paste, contradicted by the working deploy). Config: ent=0.02 lr=1e-4 save_every=500 max_admit_interval=20000 admit_min_games=1024 admit_thresh=0.70 min_admit_u=1000 updates=550000 n_envs=512 mb=32. ckpts -> ckpts/ subdir; logs (sp_train.log, sp_league.log) with scripts at run root. numpy deploy port (rl_infer) to be ported from v41 + GPU-validated AFTER training (Rule 7: no local jax).",
+  "version_label": "exp025 v1: v41 OrbitNet19 E=128 + SimpleFracMLP self-play, RANDOM start, capped F=256, ent=0.02 lr=1e-4"
+}

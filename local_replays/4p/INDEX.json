@@ -1,0 +1,110 @@
+{
+ "matches": [
+  {
+   "pair_id": "merge_vs_pub1_vs_pub1_vs_pub1",
+   "p0": {
+    "kind": "agent",
+    "id": "merge",
+    "version": null
+   },
+   "p1": {
+    "kind": "agent",
+    "id": "pub1",
+    "version": null
+   },
+   "seeds": [
+    {
+     "seed": "seed_00",
+     "winner": 0,
+     "scores": [
+      3032,
+      0,
+      0,
+      0
+     ],
+     "n_turns": 124,
+     "seats": [
+      "merge",
+      "pub1",
+      "pub1",
+      "pub1"
+     ],
+     "mtime": 1783287996.496736
+    },
+    {
+     "seed": "seed_01",
+     "winner": 3,
+     "scores": [
+      0,
+      0,
+      0,
+      1278
+     ],
+     "n_turns": 156,
+     "seats": [
+      "merge",
+      "pub1",
+      "pub1",
+      "pub1"
+     ],
+     "mtime": 1783288060.7493837
+    },
+    {
+     "seed": "seed_02",
+     "winner": 2,
+     "scores": [
+      0,
+      0,
+      2103,
+      0
+     ],
+     "n_turns": 267,
+     "seats": [
+      "merge",
+      "pub1",
+      "pub1",
+      "pub1"
+     ],
+     "mtime": 1783288159.5172186
+    },
+    {
+     "seed": "seed_03",
+     "winner": 0,
+     "scores": [
+      741,
+      0,
+      0,
+      0
+     ],
+     "n_turns": 92,
+     "seats": [
+      "merge",
+      "pub1",
+      "pub1",
+      "pub1"
+     ],
+     "mtime": 1783288201.4071476
+    },
+    {
+     "seed": "seed_04",
+     "winner": 0,
+     "scores": [
+      2005,
+      0,
+      0,
+      0
+     ],
+     "n_turns": 167,
+     "seats": [
+      "merge",
+      "pub1",
+      "pub1",
+      "pub1"
+     ],
+     "mtime": 1783288276.6138527
+    }
+   ],
+   "_latest_mtime": 1783288276.6138527
+  }
+ ]
+}

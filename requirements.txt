@@ -1,0 +1,8 @@
+# orbit-wars solution -- fork & run
+numpy>=1.24
+kaggle-environments==1.30.1     # official game engine (eval + recording)
+flax>=0.8                        # checkpoint (msgpack) load; model defs
+jax>=0.4.28                      # training + jax engine (use jax[cuda] on a GPU box; jax[cpu] works for a smoke)
+optax>=0.2                       # PPO optimizer (training)
+msgpack>=1.0
+torch>=2.0                       # ONLY for the two public opponents (eval/opponents/*); not needed for our agents

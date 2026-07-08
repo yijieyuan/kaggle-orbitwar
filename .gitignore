@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.jax_cache/
+**/_smoke*/
+**/.jax_cache/
+.DS_Store
+kaggle.json
+*.log
+# ship the real 2p deploy-run training logs (u28000->u55200):
+!2p/training/sp_sample.log
+!2p/training/sp_league.log
+**/_fixcheck/
+**/_tmp*/

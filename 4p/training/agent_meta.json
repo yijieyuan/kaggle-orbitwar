@@ -1,0 +1,37 @@
+{
+  "alias": "il-sp-4p",
+  "category": "rl",
+  "backend": "numpy",
+  "n_players": 4,
+  "zero_bin": false,
+  "encoder_E": 128,
+  "K": "pointer + clipped-Gaussian fraction (self-slot = hold)",
+  "action": "pointer + clipped-Gaussian fraction (SimpleFracMLP)",
+  "n_layers": 6,
+  "n_heads": 4,
+  "jax_env": "jax_env/env.py",
+  "model": "model.py",
+  "feature_dim": 30,
+  "glob_dim": 34,
+  "ts_shape": [
+    50,
+    10
+  ],
+  "econ_shape": [
+    50,
+    8
+  ],
+  "canonical": "C4-rotation (RINGPOS [0,1,3,2]; _rot_xy/_rot_vec/_ring_role); seat homes BR/BL/TR/TL",
+  "engine": "econcnn_pointer_simplefrac_e128_6l_4h_4p",
+  "first_hit_gate": true,
+  "param_trees": [
+    "net",
+    "frac"
+  ],
+  "tournament_updates": [],
+  "bare_v_default": false,
+  "weights_env": "ORBIT4P_WEIGHTS",
+  "note": "exp25-4p (v41): combined-IL warm-start -> 4p FFA self-play LEAGUE on the v41 arch. MODEL = v41 (exp20 v41 4p port): OrbitNet19 trunk E=128/6L/4 heads returning a GLOBAL token gemb; frac head = SimpleFracMLP (2-layer MLP on concat[emb[source] || emb[chosen-target] || gemb] = 3*128=384 -> 256 -> 2 giving mu,sigma; NO edge, NO coord-attn); pointer query from local emb (self-slot = HOLD legal); 2-tree {net,frac}. FEATURES = v37/v41 econ-CNN, RING-ROLE relative via C4 seat-canonical rotation (q1=clockwise, q2=antipodal, q3=ccw): static 30, ts (50,10), glob 34, econ_curves (50,8). DEPLOY = NATIVE 4p (me = real seat 0..3, NO 2p->4p owner remap). SELF-PLAY (train_league_4p.py): anchor seat0 always current + seats 1,2,3 each independently 80% current / 20% league; 3 independent PFSP-sampled pool members/update; record all current-controlled seats (league seats masked); FFA per-seat reward sign(ships_i-max_others); NO RESIGN; PER-PLAYER 128 in-flight FLEET CAP (TRAIN-ONLY; MAX_FLEETS=4*128=512). Two-winrate league pool: per-member 1st-place EMA (PFSP P~wr^1+floor) + reference current-out-ranks-member EMA (admission >=0.70). c1st metric = current 1st-place over ALL current seats.",
+  "arch_note": "E=128, 6-layer edge-bias econ-CNN trunk, 4 heads. trunk returns gemb (global token). pointer query from emb, self=hold. frac = SimpleFracMLP([emb||emb_tid||gemb] 384->256->2) -> CONTINUOUS clipped-Gaussian fraction (mu,sigma; sigma=exp(clip(o,-2.0,0.0)) in [~0.135, 1.0]). NUMPY DEPLOY PORT rl_infer.py = the v41 port (decode == jax greedy; decode_parity.py on the NATIVE 4p board pool, seats 0..3). agent.py reads ORBIT4P_WEIGHTS (default weights.npz).",
+  "version_label": "exp25-4p v1 (v41): combined 2p+4p IL warm-start + 4p FFA self-play league (v41 OrbitNet19 + SimpleFracMLP, E128/6L/4h, per-player 128 fleet cap, sigma<=1.0)."
+}
